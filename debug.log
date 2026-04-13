@@ -1,0 +1,6 @@
+[21:02:34] CMD: "C:\xampp\htdocs\spotidown/.venv/Scripts/spotdl.exe" save "https://open.spotify.com/playlist/48970m7qEd5Q2vxMih2nxz?si=c6d923c02b344f00" --save-file "C:\xampp\htdocs\spotidown/jobs/meta_69dd3d4b1a9dc.spotdl" --no-cache 2>&1
+OUT: Processing query:                                                              
+https://open.spotify.com/playlist/48970m7qEd5Q2vxMih2nxz?si=c6d923c02b344f00   
+Your application has reached a rate/request limit. Retry will occur after: 86400 s
+
+
