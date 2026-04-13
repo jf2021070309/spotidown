@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SpotiDown – Verificar instalación</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --green: #1DB954; --red: #ef4444; --yellow: #f59e0b;
+      --bg: #050810; --card: rgba(255,255,255,0.05); --border: rgba(255,255,255,0.1);
+      --text1: #f0f4ff; --text2: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text1); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 24px;
+      padding: 48px; max-width: 560px; width: 100%; backdrop-filter: blur(12px);
+    }
+    h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; }
+    p  { color: var(--text2); font-size: 0.9rem; margin-bottom: 32px; line-height: 1.6; }
+    .dep { display: flex; align-items: center; gap: 14px; padding: 16px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 12px; }
+    .dep-icon { font-size: 1.5rem; flex-shrink: 0; }
+    .dep-body { flex: 1; }
+    .dep-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; }
+    .dep-version { font-size: 0.78rem; color: var(--text2); font-family: monospace; }
+    .badge { border-radius: 20px; font-size: 0.72rem; font-weight: 700; padding: 4px 12px; white-space: nowrap; }
+    .badge-ok  { background: rgba(29,185,84,0.15); color: var(--green); border: 1px solid rgba(29,185,84,0.3); }
+    .badge-err { background: rgba(239,68,68,0.15);  color: var(--red);   border: 1px solid rgba(239,68,68,0.3);  }
+    .install-cmd { background: #0a0f1d; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px 18px; margin: 16px 0; font-family: monospace; font-size: 0.82rem; color: #7dd3fc; position: relative; }
+    .install-cmd::before { content: '$ '; color: var(--green); }
+    .btn { display: block; width: 100%; padding: 14px; background: linear-gradient(135deg, #1DB954, #158a3e); color: white; border: none; border-radius: 14px; font-size: 0.95rem; font-weight: 700; font-family: inherit; cursor: pointer; text-align: center; text-decoration: none; margin-top: 24px; transition: 0.2s; }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(29,185,84,0.3); }
+    .steps { margin-top: 28px; }
+    .steps h3 { font-size: 1rem; margin-bottom: 14px; color: var(--text2); font-weight: 600; }
+    .step { display: flex; gap: 12px; margin-bottom: 10px; font-size: 0.85rem; color: var(--text2); }
+    .step strong { color: var(--text1); }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>⚙️ Verificación de SpotiDown</h1>
+  <p>Esta página verifica que las dependencias necesarias están instaladas para que SpotiDown funcione correctamente.</p>
+
+  <div id="deps">
+    <div class="dep">
+      <div class="dep-icon">⏳</div>
+      <div class="dep-body"><div class="dep-name">Verificando...</div></div>
+    </div>
+  </div>
+
+  <div id="installGuide" style="display:none;">
+    <div class="steps">
+      <h3>📦 Instalación rápida</h3>
+      <div class="step"><strong>1.</strong> Instalar Python:</div>
+      <div class="install-cmd">winget install Python.Python.3</div>
+      <div class="step"><strong>2.</strong> Instalar spotdl:</div>
+      <div class="install-cmd">pip install spotdl</div>
+      <div class="step"><strong>3.</strong> Instalar ffmpeg:</div>
+      <div class="install-cmd">spotdl --download-ffmpeg</div>
+      <div class="step"><strong>4.</strong> Verificar:</div>
+      <div class="install-cmd">spotdl --version</div>
+    </div>
+  </div>
+
+  <a href="index.html" class="btn">← Volver a SpotiDown</a>
+</div>
+
+<script>
+(async () => {
+  const depsDiv = document.getElementById('deps');
+  const guideDiv = document.getElementById('installGuide');
+
+  const res = await fetch('api.php?action=check_deps');
+  const data = await res.json();
+
+  const deps = [
+    { name: 'Python', ok: data.python_version && !data.python_version.includes('No'), version: data.python_version, icon: '🐍' },
+    { name: 'spotdl', ok: data.spotdl_ok,  version: data.spotdl_version, icon: '🎵' },
+    { name: 'ffmpeg', ok: data.ffmpeg_ok,  version: data.ffmpeg_version, icon: '🎬' },
+  ];
+
+  let hasError = false;
+  depsDiv.innerHTML = deps.map(d => {
+    if (!d.ok) hasError = true;
+    return `
+      <div class="dep">
+        <div class="dep-icon">${d.icon}</div>
+        <div class="dep-body">
+          <div class="dep-name">${d.name}</div>
+          <div class="dep-version">${d.version || '—'}</div>
+        </div>
+        <span class="badge ${d.ok ? 'badge-ok' : 'badge-err'}">${d.ok ? '✓ OK' : '✗ Falta'}</span>
+      </div>`;
+  }).join('');
+
+  if (hasError) guideDiv.style.display = 'block';
+})();
+</script>
+</body>
+</html>
