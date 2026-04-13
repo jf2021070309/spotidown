@@ -15,8 +15,16 @@
   const loadingSubtitle = document.getElementById('loadingSubtitle');
   const resultsSection  = document.getElementById('resultsSection');
   const stepsSection    = document.getElementById('stepsSection');
-  const errorToast      = document.getElementById('errorToast');
-  const errorMessage    = document.getElementById('errorMessage');
+  const infoToast      = document.getElementById('infoToast');
+  const infoMessage    = document.getElementById('infoMessage');
+
+  // Settings elements
+  const openSettingsBtn    = document.getElementById('openSettingsBtn');
+  const settingsModal      = document.getElementById('settingsModal');
+  const closeSettingsBtn   = document.getElementById('closeSettingsBtn');
+  const saveSettingsBtn    = document.getElementById('saveSettingsBtn');
+  const spotifyClientId    = document.getElementById('spotifyClientId');
+  const spotifyClientSecret = document.getElementById('spotifyClientSecret');
 
   const playlistThumb   = document.getElementById('playlistThumb');
   const playlistTypeBadge = document.getElementById('playlistTypeBadge');
@@ -55,6 +63,49 @@
       container.appendChild(span);
     }
   })();
+
+  /* ── Settings Modal Logic ── */
+  openSettingsBtn.addEventListener('click', () => {
+    settingsModal.style.display = 'flex';
+  });
+
+  closeSettingsBtn.addEventListener('click', () => {
+    settingsModal.style.display = 'none';
+  });
+
+  saveSettingsBtn.addEventListener('click', async () => {
+    const client_id = spotifyClientId.value.trim();
+    const client_secret = spotifyClientSecret.value.trim();
+
+    if (!client_id || !client_secret) {
+      showToast('Por favor completa ambos campos.', 'error');
+      return;
+    }
+
+    saveSettingsBtn.disabled = true;
+    saveSettingsBtn.textContent = 'Guardando...';
+
+    try {
+      const res = await fetch('api.php?action=save_config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id, client_secret })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        showToast('Configuración guardada. El límite de 24h debería desaparecer.', 'success');
+        settingsModal.style.display = 'none';
+      } else {
+        throw new Error(data.error || 'Error al guardar');
+      }
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    } finally {
+      saveSettingsBtn.disabled = false;
+      saveSettingsBtn.textContent = 'Guardar cambios';
+    }
+  });
 
   /* ── Paste button ── */
   pasteBtn.addEventListener('click', async () => {
@@ -358,12 +409,15 @@
     loadingOverlay.style.display = 'none';
   }
 
-  let errorTimer = null;
-  function showError(msg) {
-    errorMessage.textContent = msg;
-    errorToast.classList.add('show');
-    if (errorTimer) clearTimeout(errorTimer);
-    errorTimer = setTimeout(() => errorToast.classList.remove('show'), 5000);
+  let toastTimer = null;
+  function showToast(msg, type = 'error') {
+    infoMessage.textContent = msg;
+    infoToast.className = 'toast show toast-' + type;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => infoToast.classList.remove('show'), 6000);
   }
+
+  // legacy helper mapping
+  function showError(msg) { showToast(msg, 'error'); }
 
 })();

@@ -18,7 +18,15 @@ header('Access-Control-Allow-Headers: Content-Type');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
-/* ─────────────────────────────────────────────
+// Cargar configuración si existe
+if (file_exists(__DIR__ . '/.env.php')) {
+    include_once __DIR__ . '/.env.php';
+}
+
+// Valores por defecto si no están definidos
+if (!defined('SPOTIPY_CLIENT_ID')) define('SPOTIPY_CLIENT_ID', '');
+if (!defined('SPOTIPY_CLIENT_SECRET')) define('SPOTIPY_CLIENT_SECRET', '');
+if (!defined('DEFAULT_AUDIO_PROVIDER')) define('DEFAULT_AUDIO_PROVIDER', 'piped');
    CONFIGURATION
    ───────────────────────────────────────────── */
 define('SPOTDL_CMD',  __DIR__ . '/.venv/Scripts/spotdl');
@@ -46,6 +54,7 @@ switch ($action) {
     case 'download_single':handleDownloadSingle(); break;
     case 'serve':          handleServe();           break;
     case 'check_deps':     handleCheckDeps();      break;
+    case 'save_config':    handleSaveConfig();     break;
     default:
         jsonError('Acción no válida');
 }
@@ -59,17 +68,13 @@ function handleInfo() {
     $url  = sanitizeUrl($body['url'] ?? '');
     if (!$url) jsonError('URL no válida');
 
-    // Usar spotdl --print-errors --format json para obtener metadata
-    $cmd = buildSpotdlCmd(['--print-errors', '--save-file', '/dev/null', '--output', '/dev/null'], $url);
-
-    // Alternativa: usar la API de Spotify directamente vía spotdl
-    // Como spotdl puede tardar, usamos un timeout corto solo para metadata
-    $output = execCommand(SPOTDL_CMD . ' save "' . escapeshellarg($url) . '"' .
-        ' --save-file ' . escapeshellarg(JOBS_DIR . 'meta_' . uniqid() . '.spotdl') .
-        ' 2>&1', 60);
-
     // Parsear el archivo .spotdl generado (JSON)
+    // parseSpotdlMeta ya ejecuta el comando internamente una sola vez
     $meta = parseSpotdlMeta($url);
+
+    if (empty($meta['tracks']) && isset($meta['error'])) {
+        jsonError('No se pudo obtener la información: ' . $meta['error']);
+    }
 
     jsonSuccess($meta);
 }
@@ -235,9 +240,27 @@ function handleCheckDeps() {
         'spotdl_version' => $spotdl ?: 'No encontrado',
         'ffmpeg_version' => $ffmpeg ? explode("\n", $ffmpeg)[0] : 'No encontrado',
         'python_version' => $python ?: 'No encontrado',
-        'spotdl_ok'      => (bool)preg_match('/^\d+\.\d+\.\d+/', $spotdl), // Verifica si empieza con un número de versión
+        'spotdl_ok'      => (bool)preg_match('/^\d+\.\d+\.\d+/', $spotdl),
         'ffmpeg_ok'      => str_contains(strtolower($ffmpeg), 'ffmpeg'),
+        'has_credentials'=> !empty(SPOTIPY_CLIENT_ID) && !empty(SPOTIPY_CLIENT_SECRET),
     ]);
+}
+
+function handleSaveConfig() {
+    $body = getJsonBody();
+    $clientId = trim($body['client_id'] ?? '');
+    $clientSecret = trim($body['client_secret'] ?? '');
+
+    $content = "<?php\n" .
+               "define('SPOTIPY_CLIENT_ID', '$clientId');\n" .
+               "define('SPOTIPY_CLIENT_SECRET', '$clientSecret');\n" .
+               "define('DEFAULT_AUDIO_PROVIDER', 'piped');\n";
+    
+    if (file_put_contents(__DIR__ . '/.env.php', $content)) {
+        jsonSuccess(['message' => 'Configuración guardada correctamente']);
+    } else {
+        jsonError('No se pudo guardar la configuración. Verifica permisos del archivo .env.php');
+    }
 }
 
 /* ─────────────────────────────────────────────
@@ -245,10 +268,10 @@ function handleCheckDeps() {
    ───────────────────────────────────────────── */
 function parseSpotdlMeta(string $url): array {
     // Intentar con spotdl save para obtener JSON
-    $tmpFile = tempnam(JOBS_DIR, 'meta') . '.spotdl';
+    $tmpFile = JOBS_DIR . 'meta_' . uniqid() . '.spotdl';
 
     $cmd = sprintf(
-        '%s save "%s" --save-file "%s" 2>&1',
+        '%s.exe save "%s" --save-file "%s" 2>&1',
         SPOTDL_CMD,
         addslashes($url),
         addslashes($tmpFile)
@@ -271,7 +294,6 @@ function parseSpotdlMeta(string $url): array {
         $data = json_decode($json, true);
 
         if ($data && isset($data['songs'])) {
-            // spotdl .spotdl format
             $meta['type']  = $data['type'] ?? 'playlist';
             $meta['name']  = $data['name'] ?? 'Playlist';
             $meta['owner'] = $data['artist'] ?? ($data['owner'] ?? '');
@@ -288,11 +310,13 @@ function parseSpotdlMeta(string $url): array {
                 ];
             }
         }
-    }
-
-    // Fallback: parse from spotdl output lines
-    if (empty($meta['tracks'])) {
-        $meta = parseFallbackMeta($url, $output);
+    } else {
+        // Reportar el error de consola si no se generó el archivo de metadata
+        return [
+            'success' => false,
+            'error'   => 'Error al conectar con Spotify (SpotDL): ' . substr($output, 0, 400),
+            'tracks'  => []
+        ];
     }
 
     return $meta;
@@ -374,6 +398,11 @@ function sanitizeUrl(string $url): string {
 
 function buildSpotdlCmd(array $flags, string $url): string {
     $parts = [SPOTDL_CMD . '.exe'];
+    
+    // Forzar el proveedor de audio para evitar bloqueos
+    $parts[] = '--audio';
+    $parts[] = DEFAULT_AUDIO_PROVIDER . ' youtube-music';
+    
     foreach ($flags as $f) $parts[] = $f;
     $parts[] = '"' . addslashes($url) . '"';
     return implode(' ', $parts);
@@ -381,7 +410,13 @@ function buildSpotdlCmd(array $flags, string $url): string {
 
 function execCommand(string $cmd, int $timeout = 60): string {
     $venvPath = __DIR__ . '/.venv/Scripts';
+    
+    // Inyectar PATH y credenciales de Spotify en el entorno del proceso
     putenv("PATH=" . $venvPath . PATH_SEPARATOR . getenv("PATH"));
+    if (SPOTIPY_CLIENT_ID) {
+        putenv("SPOTIPY_CLIENT_ID=" . SPOTIPY_CLIENT_ID);
+        putenv("SPOTIPY_CLIENT_SECRET=" . SPOTIPY_CLIENT_SECRET);
+    }
     
     set_time_limit($timeout + 10);
     if (PHP_OS_FAMILY === 'Windows') {

@@ -13,6 +13,14 @@ define('JOBS_DIR',      __DIR__ . '/jobs/');
 define('AUDIO_FORMAT',  'mp3');
 define('AUDIO_QUALITY', '320k');
 
+// Cargar configuración de credenciales
+if (file_exists(__DIR__ . '/.env.php')) {
+    include_once __DIR__ . '/.env.php';
+}
+if (!defined('SPOTIPY_CLIENT_ID')) define('SPOTIPY_CLIENT_ID', '');
+if (!defined('SPOTIPY_CLIENT_SECRET')) define('SPOTIPY_CLIENT_SECRET', '');
+if (!defined('DEFAULT_AUDIO_PROVIDER')) define('DEFAULT_AUDIO_PROVIDER', 'piped');
+
 set_time_limit(0);
 ignore_user_abort(true);
 
@@ -83,17 +91,22 @@ saveState($stateFile, $state);
    ─────────────────────────────────────────────  */
 log_msg("Iniciando descarga en: $dlDir");
 
-// Inyectar PATH del venv para que spotdl encuentre ffmpeg.exe y otras herramientas
+// Inyectar PATH y credenciales de Spotify en el entorno del proceso
 $venvPath = __DIR__ . '/.venv/Scripts';
 putenv("PATH=" . $venvPath . PATH_SEPARATOR . getenv("PATH"));
+if (SPOTIPY_CLIENT_ID) {
+    putenv("SPOTIPY_CLIENT_ID=" . SPOTIPY_CLIENT_ID);
+    putenv("SPOTIPY_CLIENT_SECRET=" . SPOTIPY_CLIENT_SECRET);
+}
 
 $downloadCmd = sprintf(
-    '%s.exe download "%s" --output "%s" --format %s --bitrate %s --threads 4 2>&1',
+    '%s.exe download "%s" --output "%s" --format %s --bitrate %s --threads 4 --audio %s youtube-music 2>&1',
     SPOTDL_CMD,
     addslashes($url),
     rtrim(str_replace('\\', '/', $dlDir), '/'),
     AUDIO_FORMAT,
-    AUDIO_QUALITY
+    AUDIO_QUALITY,
+    DEFAULT_AUDIO_PROVIDER
 );
 log_msg("CMD: $downloadCmd");
 

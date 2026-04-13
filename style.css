@@ -132,14 +132,23 @@ body {
   border-radius: 20px;
   letter-spacing: 0.5px;
 }
-.header-info { color: var(--text-2); font-size: 0.85rem; }
-.header-tag {
+.header-actions { display: flex; gap: 12px; }
+.settings-btn {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 0.78rem;
   color: var(--text-2);
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  backdrop-filter: blur(8px);
+}
+.settings-btn:hover {
+  background: var(--bg-card-h);
+  border-color: var(--green);
+  color: var(--green);
+  transform: rotate(45deg);
 }
 
 /* ── Hero ── */
@@ -570,6 +579,36 @@ body {
 .icon-spin   { animation: spin 1s linear infinite; color: var(--green); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Settings Card ── */
+.settings-card {
+  max-width: 450px;
+  width: 90%;
+  text-align: left;
+}
+.settings-card h3 { margin-bottom: 12px; }
+.settings-card p { margin-bottom: 24px; }
+.settings-card a { color: var(--green); text-decoration: none; font-weight: 600; }
+.settings-card a:hover { text-decoration: underline; }
+
+.settings-form { display: flex; flex-direction: column; gap: 18px; margin-bottom: 32px; }
+.input-group { display: flex; flex-direction: column; gap: 8px; }
+.input-group label { font-size: 0.8rem; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.5px; }
+.input-group input {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.input-group input:focus { border-color: var(--green); }
+
+.settings-actions { display: flex; gap: 12px; }
+.settings-actions button { flex: 1; justify-content: center; }
+
 /* ── Loading overlay ── */
 .loading-overlay {
   position: fixed;
@@ -652,8 +691,8 @@ body {
   bottom: 32px; left: 50%;
   transform: translateX(-50%) translateY(120px);
   background: #1e1e2e;
-  border: 1px solid rgba(239,68,68,0.4);
-  color: #fca5a5;
+  border: 1px solid var(--border-h);
+  color: var(--text-1);
   padding: 14px 22px;
   border-radius: var(--radius-md);
   display: flex;
@@ -668,6 +707,8 @@ body {
   white-space: nowrap;
   max-width: 90vw;
 }
+.toast.toast-error { border-color: rgba(239,68,68,0.4); color: #fca5a5; }
+.toast.toast-success { border-color: rgba(29,185,84,0.4); color: #bbf7d0; }
 .toast.show { transform: translateX(-50%) translateY(0); }
 
 /* ── Footer ── */

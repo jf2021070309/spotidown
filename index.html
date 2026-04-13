@@ -34,8 +34,13 @@
         <span class="logo-text">SpotiDown</span>
         <span class="logo-badge">320 kbps</span>
       </div>
-      <div class="header-info">
-        <span class="header-tag">🎵 Playlists · Álbumes · Tracks</span>
+      <div class="header-actions">
+        <button class="settings-btn" id="openSettingsBtn" title="Configurar credenciales (Bypass 24h)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
       </div>
     </header>
 
@@ -174,6 +179,30 @@
 
     </section>
 
+    <!-- Settings Modal -->
+    <div class="loading-overlay" id="settingsModal" style="display:none;">
+      <div class="loading-card settings-card">
+        <h3>Configuración de Spotify</h3>
+        <p>Para saltar el límite de 24 horas, obtén tus credenciales en <a href="https://developer.spotify.com/dashboard" target="_blank">Spotify Dashboard</a>.</p>
+        
+        <div class="settings-form">
+          <div class="input-group">
+            <label>Client ID</label>
+            <input type="text" id="spotifyClientId" placeholder="Pega tu Client ID aquí">
+          </div>
+          <div class="input-group">
+            <label>Client Secret</label>
+            <input type="password" id="spotifyClientSecret" placeholder="Pega tu Client Secret aquí">
+          </div>
+        </div>
+
+        <div class="settings-actions">
+          <button class="paste-btn" id="closeSettingsBtn">Cancelar</button>
+          <button class="search-btn" id="saveSettingsBtn">Guardar cambios</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Loading overlay -->
     <div class="loading-overlay" id="loadingOverlay" style="display:none;">
       <div class="loading-card">
@@ -192,11 +221,11 @@
     </div>
 
     <!-- Error toast -->
-    <div class="toast toast-error" id="errorToast">
+    <div class="toast" id="infoToast">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
       </svg>
-      <span id="errorMessage">Error al procesar</span>
+      <span id="infoMessage">Mensaje informativo</span>
     </div>
 
     <!-- Footer -->
