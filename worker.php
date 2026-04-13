@@ -51,6 +51,40 @@ function log_msg(string $msg): void {
     flush();
 }
 
+/**
+ * Extractor de Emergencia: Parsear la página pública Embed de Spotify
+ */
+function parseSpotifyEmbed(string $url): array {
+    $url = preg_replace('/\?.*/', '', $url);
+    $embedUrl = str_replace(['/playlist/', '/track/', '/album/'], ['/embed/playlist/', '/embed/track/', '/embed/album/'], $url);
+    $options = [
+        'http' => [
+            'method' => "GET",
+            'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36\r\n"
+        ]
+    ];
+    $context = stream_context_create($options);
+    $html = @file_get_contents($embedUrl, false, $context);
+    if (!$html) throw new Exception("Error al conectar con Spotify Embed");
+    
+    if (preg_match('/<script id="resource" type="application\/json">(.+?)<\/script>/s', $html, $matches)) {
+        $json = json_decode($matches[1], true);
+        if ($json) {
+            $meta = ['tracks' => []];
+            $items = isset($json['tracks']['items']) ? $json['tracks']['items'] : [$json];
+            if (isset($json['id']) && !isset($json['tracks'])) $items = [$json];
+            foreach ($items as $item) {
+                $t = isset($item['track']) ? $item['track'] : $item;
+                $artists = [];
+                foreach (($t['artists'] ?? []) as $a) $artists[] = $a['name'];
+                $meta['tracks'][] = ['name' => $t['name'], 'artists' => $artists];
+            }
+            return $meta;
+        }
+    }
+    throw new Exception("No se encontraron metadatos.");
+}
+
 /* ─────────────────────────────────────────────
    STEP 1: Obtener info de la playlist via spotdl save
    ─────────────────────────────────────────────  */
@@ -78,6 +112,23 @@ if (file_exists($saveFile)) {
         $trackNames[] = ($s['name'] ?? 'Track') . ' - ' . implode(', ', $s['artists'] ?? []);
     }
     log_msg("Total canciones: $totalTracks");
+} else {
+    log_msg("Fallo spotdl save, intentando extractor de emergencia...");
+    try {
+        $meta = parseSpotifyEmbed($url);
+        $totalTracks = count($meta['tracks']) ?: 1;
+        foreach ($meta['tracks'] as $t) {
+            $trackNames[] = $t['name'] . ' - ' . implode(', ', $t['artists']);
+        }
+        log_msg("Extractor de emergencia cargó $totalTracks canciones.");
+    } catch (Exception $e) {
+        log_msg("ERROR FATAL: No se pudo obtener información por ningún método: " . $e->getMessage());
+        $state = loadState($stateFile);
+        $state['status'] = 'error';
+        $state['error'] = 'No se pudo obtener información de Spotify por ningún método.';
+        saveState($stateFile, $state);
+        exit(1);
+    }
 }
 
 $state = loadState($stateFile);
@@ -94,7 +145,16 @@ log_msg("Iniciando descarga en: $dlDir");
 // Inyectar PATH y credenciales de Spotify en el entorno del proceso
 $venvPath = __DIR__ . '/.venv/Scripts';
 putenv("PATH=" . $venvPath . PATH_SEPARATOR . getenv("PATH"));
-if (SPOTIPY_CLIENT_ID) {
+
+// Configurar spotdl.json dinámicamente si hay cookie para bypass
+if (defined('SPOTIFY_COOKIE') && SPOTIFY_COOKIE) {
+    $config = json_encode([
+        'spotify' => ['cookie' => SPOTIFY_COOKIE]
+    ]);
+    file_put_contents(__DIR__ . '/spotdl.json', $config);
+}
+
+if (defined('SPOTIPY_CLIENT_ID') && SPOTIPY_CLIENT_ID) {
     putenv("SPOTIPY_CLIENT_ID=" . SPOTIPY_CLIENT_ID);
     putenv("SPOTIPY_CLIENT_SECRET=" . SPOTIPY_CLIENT_SECRET);
 }

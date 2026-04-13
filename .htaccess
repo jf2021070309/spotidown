@@ -1,10 +1,11 @@
 # Disable directory listing
 Options -Indexes
 
-# Allow PHP execution
-<FilesMatch "\.php$">
-    Options +ExecCGI
-</FilesMatch>
+# Allow common methods
+<Limit GET POST OPTIONS>
+    Order allow,deny
+    Allow from all
+</Limit>
 
 # Protect jobs and downloads directories
 <FilesMatch "\.(spotdl|json|log)$">

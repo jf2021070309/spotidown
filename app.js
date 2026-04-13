@@ -25,6 +25,7 @@
   const saveSettingsBtn    = document.getElementById('saveSettingsBtn');
   const spotifyClientId    = document.getElementById('spotifyClientId');
   const spotifyClientSecret = document.getElementById('spotifyClientSecret');
+  const spotifyCookie       = document.getElementById('spotifyCookie');
 
   const playlistThumb   = document.getElementById('playlistThumb');
   const playlistTypeBadge = document.getElementById('playlistTypeBadge');
@@ -65,8 +66,21 @@
   })();
 
   /* ── Settings Modal Logic ── */
-  openSettingsBtn.addEventListener('click', () => {
+  openSettingsBtn.addEventListener('click', async () => {
     settingsModal.style.display = 'flex';
+    
+    // Cargar config actual desde el servidor
+    try {
+      const res = await fetch('api.php?action=get_config');
+      const data = await res.json();
+      if (data.success) {
+        spotifyClientId.value = data.client_id || '';
+        spotifyClientSecret.value = data.client_secret || '';
+        spotifyCookie.value = data.spotify_cookie || '';
+      }
+    } catch (e) {
+      console.error('Error cargando config:', e);
+    }
   });
 
   closeSettingsBtn.addEventListener('click', () => {
@@ -76,11 +90,7 @@
   saveSettingsBtn.addEventListener('click', async () => {
     const client_id = spotifyClientId.value.trim();
     const client_secret = spotifyClientSecret.value.trim();
-
-    if (!client_id || !client_secret) {
-      showToast('Por favor completa ambos campos.', 'error');
-      return;
-    }
+    const spotify_cookie = spotifyCookie.value.trim();
 
     saveSettingsBtn.disabled = true;
     saveSettingsBtn.textContent = 'Guardando...';
@@ -89,8 +99,13 @@
       const res = await fetch('api.php?action=save_config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id, client_secret })
+        body: JSON.stringify({ client_id, client_secret, spotify_cookie })
       });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Error del servidor (${res.status}): ${text.slice(0, 100)}`);
+      }
+
       const data = await res.json();
       
       if (data.success) {
@@ -162,7 +177,10 @@
         body: JSON.stringify({ url })
       });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text.slice(0, 50)}...`);
+      }
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Error desconocido');
 
